@@ -39,17 +39,19 @@ def extract_website_title(url):
         return "No title found"
 
 
-def analyze_text(message):
+def parse_message(message):
     #'category': 'data type'
     result = {
         "mentions": [],
+        "hashtags": [],
         "emoticons": [],
         "links": [],
         "words": 0
     }
     #'remove': 'category'
     prefixes = {
-        '@': 'mentions'
+        '@': 'mentions',
+        '#': 'hashtags'
     }
     #'remove': {x: 'remove', x: 'category'}
     character_pairs = {
@@ -86,12 +88,13 @@ def analyze_text(message):
         elif re.search(r"[A-Za-z0-9]+", word):
             result["words"] += 1         
 
-    filtered_result = {k: v for k, v in result.items() if v} # Removes empty items
-    return json.dumps(filtered_result, indent=2, ensure_ascii=False)
+    # Removes empty
+    return json.dumps({k: v for k, v in result.items() if v}, indent = 2, ensure_ascii=False)
 
 
 if __name__ == "__main__":
     # @user_1 @user2_ Hey! Check this out: https://github.com! (happy) #AWESOME 
-    message = input("Enter message to parse: ")
-    json_output = analyze_text(message)
-    print(json_output)
+    while True:
+        message = input("Enter message to parse: ")
+        json_output = parse_message(message)
+        print(json_output)
