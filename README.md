@@ -7,6 +7,10 @@ A chat message parser that analyzes text messages and extracts structured inform
 **Emoticons** - Text-based emoji expressions  
 **URLs** - Web links with title extraction  
 **Word Count** - Count of regular words  
+**Performance Metrics** - Timing information for URL fetching  
+**Hashtag Support** - Extracts #hashtags similar to @mentions  
+**URL Caching** - Simple caching for repeated URLs  
+**Async Support** - URL fetching non-blocking  
 
 ### ▶️ How to Run  
 1. Install Python
