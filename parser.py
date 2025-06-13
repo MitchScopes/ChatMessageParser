@@ -64,7 +64,7 @@ class Parser:
         return title, duration
 
 
-    async def parse(self, message):
+    async def parse(self, user_input):
         #'category': 'data type'
         result = {
             "mentions": [],
@@ -88,7 +88,7 @@ class Parser:
 
         tasks = []
 
-        words = message.split()
+        words = user_input.split()
 
         for word in words:
             word = word.rstrip('.,!?;:')
@@ -149,8 +149,8 @@ class Parser:
 
     async def main(self):
         while True:
-            message = input("Enter message to parse: ")
-            json_output = await self.parse(message)
+            user_input = input("chat-parser> ").strip()
+            json_output = await self.parse(user_input)
             print(json_output)
 
 
