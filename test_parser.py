@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 import json
-from parser import Parser
+from logic_parser import Parser
 
 class TestParser(unittest.IsolatedAsyncioTestCase):
 
