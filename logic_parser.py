@@ -3,16 +3,38 @@ import re
 import urllib.request
 import asyncio
 import time
+from collections import OrderedDict
+
+from db_parser import ParserDB
 
 class Parser:
     def __init__(self):
+        db = ParserDB()
+        config = db.get_all_config()
+        db.close()
+
+        self.max_emoticon_length = int(config["max_emoticon_length"])
+        self.max_title_length = int(config["max_title_length"])
 
         self.prefix_pattern = re.compile(r'[A-Za-z0-9_]+')
         self.url_pattern = re.compile(r'https?://\S+|www\.\S+')
         self.title_pattern = re.compile(r'<title>(.*?)</title>', re.IGNORECASE | re.DOTALL)
         self.word_pattern = re.compile(r'[A-Za-z0-9]+')
 
-        self.url_cache = {}
+        self.url_cache = OrderedDict()
+
+        self.loads_data_url_cache()
+
+
+    def loads_data_url_cache(self):
+        db = ParserDB()
+        rows = db.conn.execute(
+            "SELECT url, title, fetch_time, last_accessed FROM links ORDER BY last_accessed"
+        ).fetchall()
+
+        for url, title, fetch_time, last_accessed in rows:
+            self.url_cache[url] = (title, fetch_time, last_accessed)
+        db.close()
 
 
     def extract_prefix(self, word):
@@ -28,7 +50,7 @@ class Parser:
 
     def extract_character_pairs(self, word):
         if (word and word[0] in self.character_pairs and word[-1] == (self.character_pairs[word[0]]['close'])
-            and len(word[1:-1]) <= 15
+            and len(word[1:-1]) <= self.max_emoticon_length
             and self.word_pattern.fullmatch(word[1:-1])):
 
             key = self.character_pairs[word[0]]['category']
@@ -55,7 +77,7 @@ class Parser:
 
             if (match := self.title_pattern.search(html)):
                 extracted_title = match.group(1).strip()
-                if len(extracted_title) <= 200:
+                if len(extracted_title) <= self.max_title_length:
                     title = extracted_title
                     duration = elapsed
         except Exception:
@@ -64,7 +86,7 @@ class Parser:
         return title, duration
 
 
-    async def parse(self, user_input):
+    async def parse(self, message):
         #'category': 'data type'
         result = {
             "mentions": [],
@@ -88,7 +110,7 @@ class Parser:
 
         tasks = []
 
-        words = user_input.split()
+        words = message.split()
 
         for word in words:
             word = word.rstrip('.,!?;:')
@@ -105,17 +127,25 @@ class Parser:
 
             # Links - Start with https(s):// or www.
             elif self.url_pattern.match(word):
+                # Attempts retrieval from cache
                 cached = self.url_cache.get(word)
 
-                # Stores coroutines in cache temporarily (runtime cache)
+                # Ensures LRU cache order by adding word to cache before async execution
+                # Stores tasks in runtime cache
                 if cached is None:
-                    coro = self.extract_website_title(word)
-                    self.url_cache[word] = coro
-                    tasks.append((word, coro))
+                    now = int(time.time())
+                    self.url_cache[word] = (None, None, now)  # Add to cache
+                    self.url_cache.move_to_end(word)
 
-                # Retrieves link data from cache (memory cache)
+                    if len(self.url_cache) > 100:
+                        self.url_cache.popitem(last=False) # LRU eviction
+
+                    task = self.extract_website_title(word)
+                    tasks.append((word, task))
+
                 elif isinstance(cached, tuple):
-                    title, duration = cached
+                    self.url_cache.move_to_end(word)
+                    title, duration, _ = cached
                     result["links"].append({
                         "url": word,
                         "title": title,
@@ -130,30 +160,32 @@ class Parser:
             elif self.word_pattern.search(word):
                 result["words"] += 1
 
-        # Runs tasks (extract_website_title) asynchronously per link
-        titles = await asyncio.gather(*(task for _, task in tasks))
+        if tasks:
+            # Runs tasks (extract_website_title) asynchronously per link
+            titles = await asyncio.gather(*(task for _, task in tasks))
+            for (url, _), (title, duration) in zip(tasks, titles):
+                result["links"].append({
+                    "url": url,
+                    "title": title,
+                    "fetch_time": duration
+                })
+                _, _, time_seen = self.url_cache[url]
+                self.url_cache[url] = (title, duration, time_seen) # Adds data to cache
 
-        for (url, _), (title, duration) in zip(tasks, titles):
-            result["links"].append({
-                "url": url,
-                "title": title,
-                "fetch_time": duration
-            })
-            self.url_cache[url] = (title, duration) # Adds to cache
+        try: # Add data from cache to database
+            db = ParserDB()     
+            for category in ("mentions", "hashtags", "emoticons"):
+                for value in result[category]:
+                    db.add(category, value)
+
+            for url, (title, fetch_time, time_seen) in self.url_cache.items():
+                db.add_link(url, title, fetch_time, time_seen)
+                    
+            db.conn.commit()
+        finally:
+            db.close()
 
         return json.dumps(
             {k: v for k, v in result.items() if v}, # Removes empty items
             indent = 2,         # Json formatting
             ensure_ascii=False) # Unicode fix for website titles
-
-
-    async def main(self):
-        while True:
-            user_input = input("chat-parser> ").strip()
-            json_output = await self.parse(user_input)
-            print(json_output)
-
-
-if __name__ == "__main__":
-    parser = Parser()
-    asyncio.run(parser.main())
