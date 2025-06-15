@@ -6,8 +6,8 @@ import time
 import copy
 from collections import OrderedDict
 
-from db_parser import ParserDB
-from config import RESULT_TEMPLATE, PREFIXES, CHARACTER_PAIRS, DEFAULT_CONFIG
+from src.db import ParserDB
+from src.config import RESULT_TEMPLATE, PREFIXES, CHARACTER_PAIRS, DEFAULT_CONFIG
 
 class Parser:
     def __init__(self):

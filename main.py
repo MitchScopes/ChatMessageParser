@@ -1,5 +1,5 @@
 import tkinter as tk
-from gui_parser import ParserGUI
+from src.gui import ParserGUI
 
 if __name__ == "__main__":
     root = tk.Tk()

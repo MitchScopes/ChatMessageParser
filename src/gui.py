@@ -6,9 +6,9 @@ import threading
 import ctypes
 ctypes.windll.shcore.SetProcessDpiAwareness(1) # Fixes blurry GUI
 
-from logic_parser import Parser
-from db_parser import ParserDB
-from config import DEFAULT_CONFIG, RESULT_TEMPLATE
+from src.logic import Parser
+from src.db import ParserDB
+from src.config import DEFAULT_CONFIG, RESULT_TEMPLATE
 
 
 class ParserGUI:

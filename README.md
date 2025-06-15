@@ -11,7 +11,7 @@ mkdir temp
 cd temp  
 git clone https://github.com/MitchScopes/ChatMessageParser.git  
 cd ChatMessageParser  
-python gui_parser.py
+python main.py
 ```
 
 ### Features:  

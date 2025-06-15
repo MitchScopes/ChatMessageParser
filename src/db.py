@@ -1,5 +1,5 @@
 import sqlite3
-from config import DEFAULT_CONFIG
+from src.config import DEFAULT_CONFIG
 
 class ParserDB:
     def __init__(self, db_path="data.db"):
