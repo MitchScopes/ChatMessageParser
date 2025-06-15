@@ -3,18 +3,15 @@ import re
 import urllib.request
 import asyncio
 import time
+import copy
 from collections import OrderedDict
 
 from db_parser import ParserDB
+from config import RESULT_TEMPLATE, PREFIXES, CHARACTER_PAIRS, DEFAULT_CONFIG
 
 class Parser:
     def __init__(self):
-        db = ParserDB()
-        config = db.get_all_config()
-        db.close()
-
-        self.max_emoticon_length = int(config["max_emoticon_length"])
-        self.max_title_length = int(config["max_title_length"])
+        self.reload_config()
 
         self.prefix_pattern = re.compile(r'[A-Za-z0-9_]+')
         self.url_pattern = re.compile(r'https?://\S+|www\.\S+')
@@ -24,6 +21,21 @@ class Parser:
         self.url_cache = OrderedDict()
 
         self.loads_data_url_cache()
+
+        self.prefixes = PREFIXES
+        self.character_pairs = CHARACTER_PAIRS
+
+
+    def reload_config(self):
+        db = ParserDB()
+        config = db.get_all_config()
+        db.close()
+        # Dynamically set attributes based on DEFAULT_CONFIG
+        for field in DEFAULT_CONFIG:
+            key = field["key"]
+            typ = field["type"]
+            value = typ(config[key])
+            setattr(self, key, value)
 
 
     def loads_data_url_cache(self):
@@ -87,26 +99,7 @@ class Parser:
 
 
     async def parse(self, message):
-        #'category': 'data type'
-        result = {
-            "mentions": [],
-            "hashtags": [],
-            "emoticons": [],
-            "links": [],
-            "words": 0
-        }
-        #'remove': 'category'
-        self.prefixes = {
-            '@': 'mentions',
-            '#': 'hashtags'
-        }
-        #'remove': {x: 'remove', x: 'category'}
-        self.character_pairs = {
-            '(': {
-                'close': ')',
-                'category': 'emoticons'
-            }
-        }
+        result = copy.deepcopy(RESULT_TEMPLATE)
 
         tasks = []
 
@@ -137,7 +130,7 @@ class Parser:
                     self.url_cache[word] = (None, None, now)  # Add to cache
                     self.url_cache.move_to_end(word)
 
-                    if len(self.url_cache) > 100:
+                    if len(self.url_cache) > self.MAX_CACHE_SIZE:
                         self.url_cache.popitem(last=False) # LRU eviction
 
                     task = self.extract_website_title(word)
@@ -173,14 +166,16 @@ class Parser:
                 self.url_cache[url] = (title, duration, time_seen) # Adds data to cache
 
         try: # Add data from cache to database
-            db = ParserDB()     
-            for category in ("mentions", "hashtags", "emoticons"):
+            db = ParserDB()
+            list_categories = [k for k, v in RESULT_TEMPLATE.items() if isinstance(v, list) and k != "links"]
+            for category in list_categories:
                 for value in result[category]:
-                    db.add(category, value)
+                    if isinstance(value, (str, int)):
+                        db.add(category, value)      
 
             for url, (title, fetch_time, time_seen) in self.url_cache.items():
-                db.add_link(url, title, fetch_time, time_seen)
-                    
+                db.add_link(url, title, fetch_time, time_seen)  
+
             db.conn.commit()
         finally:
             db.close()

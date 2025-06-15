@@ -31,13 +31,16 @@ python gui_parser.py
 - User configuration settings are saved to database
 
 **Graphical User Interface:**
-- Type in your own messages then click parse (or press enter)
-- View most frequent mentions, hashtags, emoticons across multiple messages (ability to clear stats from database)
+- Type in your own messages then click parse
+- View most frequent mentions, emoticons, etc across multiple messages (ability to clear stats from database)
 - Interact with configurations (customizing emoticon length, title length, etc) (ability to set back to defualt settings)
+
+**Adding New Features:**
+- Config.py file to add more prefixes (mentions, hashtags) or character_pairs (emoticons) (add to result template as well). The new parsed variable will automatically be added to database and show on GUI.
+- Add new config settings that get dynamically added to GUI and can be easily updated in logic
 
 **Unit Testing** - Run ```python test_parser.py```
 
- ### Future Features: 
- - Add more configuration settings
+ ### Future Features:
  - Update GUI design and visuals
  - Prompt user before clearing database and reset config

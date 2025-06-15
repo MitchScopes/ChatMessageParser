@@ -2,24 +2,33 @@ import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 import asyncio
 import threading
-from logic_parser import Parser, ParserDB
+
+import ctypes
+ctypes.windll.shcore.SetProcessDpiAwareness(1) # Fixes blurry GUI
+
+from logic_parser import Parser
+from db_parser import ParserDB
+from config import DEFAULT_CONFIG, RESULT_TEMPLATE
+
 
 class ParserGUI:
     def __init__(self, root):
+        root.tk.call('tk', 'scaling', 2.0)
         self.parser = Parser()
         self.root = root
         self.root.title("Chat Message Parser")
-        self.root.geometry("800x600")
-        self.root.minsize(650, 400)
+        self.root.geometry("1200x800")
+        self.root.minsize(1000, 600)
 
         db = ParserDB()
         self.config = db.get_all_config()
         db.close()
         
         # Sidebar (left)
-        self.sidebar = tk.Frame(self.root, width=250, bg="#777777")
+        self.sidebar = tk.Frame(self.root, width=350, bg="#777777")
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-    
+        self.sidebar.grid_propagate(False)
+
         # Grid behavior for sidebar
         self.sidebar.grid_rowconfigure(1, weight=1)
         self.sidebar.grid_columnconfigure(0, weight=1)
@@ -97,8 +106,7 @@ class ParserGUI:
             height=3)
         self.text_input.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=0)
 
-        # Parse message on enter or button click
-        self.text_input.bind("<Return>", self.on_enter_key)
+        # Parse message on button click
         self.submit_button = tk.Button(
             self.input_frame,
             text="Parse",
@@ -116,14 +124,18 @@ class ParserGUI:
         self.config_frame.columnconfigure(0, weight=1)
         self.config_frame.columnconfigure(1, weight=1)
 
-        # Configuration settings
-        tk.Label(self.config_frame, text="Max Emoticon Length:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
-        self.emoticon_length_var = tk.IntVar(value=int(self.config["max_emoticon_length"]))
-        tk.Entry(self.config_frame, textvariable=self.emoticon_length_var, width=5).grid(row=0, column=1, sticky="w", padx=5, pady=2)
-
-        tk.Label(self.config_frame, text="Max Title Length:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
-        self.title_length_var = tk.IntVar(value=int(self.config["max_title_length"]))
-        tk.Entry(self.config_frame, textvariable=self.title_length_var, width=5).grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        # Configuration settings (Dynamically added from config)
+        self.config_fields = DEFAULT_CONFIG
+        self.config_vars = {}
+        for idx, field in enumerate(self.config_fields):
+            tk.Label(self.config_frame, text=field["label"] + ":").grid(row=idx, column=0, sticky="w", padx=5, pady=2)
+            value = int(self.config[field["key"]]) if field["type"] == int else str(self.config[field["key"]])
+            if field["type"] == int:
+                var = tk.IntVar(value=value)
+            else:
+                var = tk.StringVar(value=value)
+            self.config_vars[field["key"]] = var
+            tk.Entry(self.config_frame, textvariable=var, width=10).grid(row=idx, column=1, sticky="w", padx=5, pady=2)
 
         # Save config changes on button click
         self.apply_config_button = tk.Button(
@@ -142,102 +154,111 @@ class ParserGUI:
         self.reset_config_button.grid(row=4, column=0, columnspan=2, pady=(0, 5))
 
         # Grid behavior for root (main window)
-        self.root.grid_columnconfigure(0, weight=0, minsize=250) # Ensure sidebar doesnt shrink
+        self.root.grid_columnconfigure(0, weight=0, minsize=350) # Ensure sidebar doesnt shrink
         self.root.grid_columnconfigure(1, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
 
+        self.buttons = [self.clear_stats_button, self.submit_button, self.apply_config_button]
         self.update_stats() # Show stats from database on startup
 
-    # Calls parse logic on enter
-    def on_enter_key(self, event):
-        self.run_parser_thread()
-        return "break"
+
+    def disable_buttons(self):
+        for btn in self.buttons:
+            btn.config(state=tk.DISABLED)
+
+    def enable_buttons(self):
+        for btn in self.buttons:
+            btn.config(state=tk.NORMAL)
+
 
     # Dynamically shows stats
     def update_stats(self):
+        self.disable_buttons()
+
         db = ParserDB()
-        # Stats
         stats_text = ""
-        for category in ("mentions", "hashtags", "emoticons"):
-            top = db.get_top(category, limit=3)
+        list_categories = [k for k, v in RESULT_TEMPLATE.items() if isinstance(v, list) and k != "links"]
+
+        for category in list_categories:
+            top = db.get_top(category, limit=5)
             stats_text += f"{category.title()}:\n"
             if top:
                 for value, count in top:
-                    display_value = value if len(value) <= 10 else value[:10] + "..."
+                    display_value = value if len(str(value)) <= 15 else str(value)[:15] + "..."
                     stats_text += f"  {display_value}: {count}\n"
             else:
                 stats_text += "  (none)\n"
             stats_text += "\n"
-        
-        # Links
-        # links = db.get_links(limit=3)
-        # stats_text += "Links:\n"
-        # if links:
-        #     for url, title, fetch_time in links:
-        #         display_url = url if len(url) <= 20 else url[:20] + "..."
-        #         display_title = title if len(title) <= 20 else title[:20] + "..."
-        #         stats_text += f"  {display_url}\n    {display_title} ({fetch_time}s)\n"
-        # else:
-        #     stats_text += "  (none)\n"
-        # stats_text += "\n"
         db.close()
+
         self.stats_text.config(state=tk.NORMAL)
         self.stats_text.delete("1.0", tk.END)
         self.stats_text.insert(tk.END, stats_text)
         self.stats_text.config(state=tk.DISABLED)
 
+        self.enable_buttons()
+
+
     def clear_stats(self):
+        self.disable_buttons()
         db = ParserDB()
         db.conn.execute("DELETE FROM stats")
-        #db.conn.execute("DELETE FROM links")
         db.conn.commit()
         db.close()
         self.update_stats()
 
+    # Save user config inputs (resets to defualt values if type error)
     def save_config(self):
+        self.disable_buttons()
+
         db = ParserDB()
-        db.set_config("max_emoticon_length", self.emoticon_length_var.get())
-        db.set_config("max_title_length", self.title_length_var.get())
+        for field in self.config_fields:
+            try:
+                value = self.config_vars[field["key"]].get()
+                value = field["type"](value)
+            except Exception:
+                value = field["default"]
+                self.config_vars[field["key"]].set(value)
+            db.set_config(field["key"], value)
         db.close()
 
-        # Reload config from DB
         db = ParserDB()
         self.config = db.get_all_config()
         db.close()
 
-        self.parser.max_emoticon_length = int(self.config["max_emoticon_length"])
-        self.parser.max_title_length = int(self.config["max_title_length"])
+        # Update parser variables
+        for field in self.config_fields:
+            setattr(self.parser, field["key"], field["type"](self.config[field["key"]]))
+            
+        self.enable_buttons()
+
 
     def reset_to_defaults(self):
-        db = ParserDB()
-        db.reset_config()
-        self.config = db.get_all_config()
-        db.close()
+        for field in self.config_fields:
+            self.config_vars[field["key"]].set(field["default"])
 
-        self.emoticon_length_var.set(int(self.config["max_emoticon_length"]))
-        self.title_length_var.set(int(self.config["max_title_length"]))
-
-        self.parser.max_emoticon_length = int(self.config["max_emoticon_length"])
-        self.parser.max_title_length = int(self.config["max_title_length"])
 
     def run_parser_thread(self):
         message = self.text_input.get("1.0", tk.END).strip()
         if not message:
             return
+        self.disable_buttons()
         thread = threading.Thread(target=self.run_async_parse, args=(message,))
         self.text_input.delete("1.0", tk.END)
         thread.start()
+
 
     def run_async_parse(self, message):
         result = asyncio.run(self.parser.parse(message))
         self.display_output(message, result)
         self.update_stats()
 
+
     def display_output(self, input_msg, result):
         self.text_output.config(state=tk.NORMAL)
         self.text_output.insert(tk.END, f"Input: \n{input_msg} \nJSON: \n")
         self.text_output.insert(tk.END, result)
-        self.text_output.insert(tk.END, "\n\n----------------------------------------\n\n")
+        self.text_output.insert(tk.END, "\n\n" + "━"*20 + "\n\n")
         self.text_output.see(tk.END)
         self.text_output.config(state=tk.DISABLED)
 
