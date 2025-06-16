@@ -81,6 +81,7 @@ class Sidebar(tk.Frame):
         db = ParserDB()
         db.conn.execute("DELETE FROM stats")
         db.conn.commit()
+        db.conn.execute("VACUUM")
         db.close()
         self.update_stats()
 
@@ -92,47 +93,66 @@ class InputFrame(tk.Frame):
         self.controller = controller
         
         # Grid behavior for input_frame
-        self.columnconfigure(0, weight=8, uniform="input")
-        self.columnconfigure(1, weight=2, uniform="input")
+        self.columnconfigure(0, weight=1)
 
         # Message box title
         self.input_label = tk.Label(
-            self, text="Enter Message:")
-        self.input_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 2))
+            self, text="Enter Message:",
+            font=("Arial", 11, "bold"))
+        self.input_label.grid(row=0, column=0, sticky="w", pady=(0, 2))
+
+        # Mode selection and radio buttons
+        self.selected_option = tk.StringVar(value="Safe_Scan")
+
+        self.mode_safe_scan = tk.Radiobutton(
+            self, text="Safe Scan Mode",
+            variable=self.selected_option,
+            value="Safe_Scan"
+        )
+        self.mode_safe_scan.grid(row=0, column=1, sticky="nsew")
+
+        self.mode_full_sweep = tk.Radiobutton(
+            self, text="Full Sweep Mode",
+            variable=self.selected_option,
+            value="Full_Sweep"
+        )
+        self.mode_full_sweep.grid(row=0, column=2, sticky="nsew")
 
         # Message box
         self.text_input = ScrolledText(
             self, font=("Arial", 12),
             height=3)
-        self.text_input.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=0)
+        self.text_input.grid(row=1, column=0,  sticky="ew", padx=(0, 5), pady=0)
 
         # Parse message on button click
         self.submit_button = tk.Button(
             self, text="Parse",
+            font=("Arial", 12),
             command=self.run_parser_thread)
-        self.submit_button.grid(row=1, column=1, sticky="nsew", padx=(5, 0), pady=0)
+        self.submit_button.grid(row=1, column=1, columnspan=2, sticky="nsew", padx=(5, 0), pady=0)
 
     # Run the parser logic in a separate thread (to avoid freezing the GUI)
     def run_parser_thread(self):
         message = self.text_input.get("1.0", tk.END).strip()
         if not message:
             return
+        mode = self.selected_option.get()
         self.controller.disable_buttons()
-        thread = threading.Thread(target=self.run_async_parse, args=(message,))
+        thread = threading.Thread(target=self.run_async_parse, args=(message, mode))
         self.text_input.delete("1.0", tk.END)
         thread.start()
 
     # Run async parser and update the GUI with the result
-    def run_async_parse(self, message):
-        result = asyncio.run(self.controller.parser.parse(message))
+    def run_async_parse(self, message, mode):
+        result = asyncio.run(self.controller.parser.parse(message, mode))
         self.controller.main_frame.display_output(message, result)
         self.controller.sidebar.update_stats()
 
 
 
-class ConfigFrame(tk.Frame):
+class ConfigFrame(tk.LabelFrame):
     def __init__(self, parent, controller):
-        super().__init__(parent) #, text="Config Settings", font=("Arial", 10, "bold")
+        super().__init__(parent, text="Config Settings", font=("Arial", 10, "bold"))
         self.controller = controller
 
         db = ParserDB()

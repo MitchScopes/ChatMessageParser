@@ -1,7 +1,7 @@
 # key: 'Variable name in logic', label: 'Name on GUI', type: 'data type', defualt: 'value'
 DEFAULT_CONFIG = [
-    {"key": "max_emoticon_length", "label": "Max Emoticon Length", "type": int, "default": 15},
-    {"key": "max_title_length", "label": "Max Title Length", "type": int, "default": 200},
+    {"key": "max_pair_length", "label": "Max Character Pair Length (emoticons, etc)", "type": int, "default": 15},
+    {"key": "max_title_length", "label": "Max Title Length (for links)", "type": int, "default": 200},
     {"key": "MAX_CACHE_SIZE", "label": "Max LRU Cache Size", "type": int, "default": 100}
 ]
 

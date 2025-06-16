@@ -11,26 +11,41 @@ from src.config import RESULT_TEMPLATE, PREFIXES, CHARACTER_PAIRS, DEFAULT_CONFI
 
 class Parser:
     def __init__(self):
-        self.reload_config()
+        # Load settings from config
+        self.load_config()
 
+        self.prefixes = PREFIXES
+        self.character_pairs = CHARACTER_PAIRS
+
+        # Load database into cache
+        self.url_cache = OrderedDict()
+        self.loads_data_url_cache()
+
+        # Safe Scan Regex
         self.prefix_pattern = re.compile(r'[A-Za-z0-9_]+')
         self.url_pattern = re.compile(r'https?://\S+|www\.\S+')
         self.title_pattern = re.compile(r'<title>(.*?)</title>', re.IGNORECASE | re.DOTALL)
         self.word_pattern = re.compile(r'[A-Za-z0-9]+')
 
-        self.url_cache = OrderedDict()
+        # Full Sweep Mode Regex
+        prefix_chars = ''.join(re.escape(k) for k in self.prefixes.keys())
+        pair_opens = ''.join(re.escape(k) for k in self.character_pairs.keys())
+        pair_closes = ''.join(re.escape(v['close']) for v in self.character_pairs.values())
 
-        self.loads_data_url_cache()
+        token_pattern_str = (
+            rf'[{prefix_chars}]{self.prefix_pattern.pattern}'
+            rf'|[{pair_opens}]{self.word_pattern.pattern}[{pair_closes}]'
+            rf'|{self.url_pattern.pattern}'
+            rf'|{self.word_pattern.pattern}'
+        )
+        self.token_pattern = re.compile(token_pattern_str)
 
-        self.prefixes = PREFIXES
-        self.character_pairs = CHARACTER_PAIRS
 
-
-    def reload_config(self):
+    def load_config(self):
         db = ParserDB()
         config = db.get_all_config()
         db.close()
-        # Dynamically set attributes based on DEFAULT_CONFIG
+        # Dynamically set settings based on DEFAULT_CONFIG
         for field in DEFAULT_CONFIG:
             key = field["key"]
             typ = field["type"]
@@ -62,7 +77,7 @@ class Parser:
 
     def extract_character_pairs(self, word):
         if (word and word[0] in self.character_pairs and word[-1] == (self.character_pairs[word[0]]['close'])
-            and len(word[1:-1]) <= self.max_emoticon_length
+            and len(word[1:-1]) <= self.max_pair_length
             and self.word_pattern.fullmatch(word[1:-1])):
 
             key = self.character_pairs[word[0]]['category']
@@ -98,12 +113,15 @@ class Parser:
         return title, duration
 
 
-    async def parse(self, message):
+    async def parse(self, message, mode):
         result = copy.deepcopy(RESULT_TEMPLATE)
 
         tasks = []
 
-        words = message.split()
+        if mode == "Safe_Scan":
+            words = message.split()
+        else:
+            words = self.token_pattern.findall(message)
 
         for word in words:
             word = word.rstrip('.,!?;:')
@@ -173,10 +191,18 @@ class Parser:
                         db.add(category, value)      
 
             for url, (title, fetch_time, time_seen) in self.url_cache.items():
-                db.add_link(url, title, fetch_time, time_seen)  
+                db.add_link(url, title, fetch_time, time_seen)
+            
+            # Update database with LRU cache
+            cache_urls = set(self.url_cache.keys())
+            db_urls = set(row[0] for row in db.conn.execute("SELECT url FROM links"))
+            urls_to_remove = db_urls - cache_urls
+            for url in urls_to_remove:
+                db.conn.execute("DELETE FROM links WHERE url = ?", (url,))
 
             db.conn.commit()
         finally:
+            db.conn.execute("VACUUM")
             db.close()
 
         return json.dumps(

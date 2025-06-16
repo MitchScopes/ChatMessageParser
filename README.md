@@ -35,13 +35,16 @@ python main.py
 - View most frequent mentions, emoticons, etc across multiple messages (ability to clear stats from database)
 - Interact with configurations (customizing emoticon length, title length, etc) (ability to set back to defualt settings)
 
+**Mode Selection:**
+- *Safe Scan* - Ignores edge cases checks for only clearly valid tokens
+- *Full Sweep* - Attempts to extract all possible patterns within message  
+Example:  
+Safe Scan: (happy)(happy)  -> emoticons = 0, words = 1  
+Full Sweep: (happy)(happy)  -> emoticons = happy, happy  
+
 **Adding New Features:**
 - Config.py file to add more prefixes (mentions, hashtags) or character_pairs (emoticons) (add to result template as well). The new parsed variable will automatically be added to database and show on GUI.
 - Add new config settings that get dynamically added to GUI and can be easily updated in logic
 
 **Unit Testing**
 - Run ```python -m unittest discover -s tests```
-
-### Future Features:
-- Update GUI visuals
-- Prompt user before clearing database and reset config

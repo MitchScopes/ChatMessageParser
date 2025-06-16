@@ -58,15 +58,6 @@ class ParserDB:
             VALUES (?, ?, ?, ?)
             ON CONFLICT(url) DO UPDATE SET title=excluded.title, fetch_time=excluded.fetch_time, last_accessed=excluded.last_accessed
         """, (url, title, fetch_time, last_accessed))
-
-    # def get_links(self, limit=5):
-    #     cur = self.conn.cursor()
-    #     cur.execute("""
-    #         SELECT url, title, fetch_time FROM links
-    #         ORDER BY fetch_time DESC
-    #         LIMIT ?
-    #     """, (limit,))
-    #     return cur.fetchall()
     
     # Configuration
     def set_config(self, key, value):
