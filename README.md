@@ -39,8 +39,9 @@ python main.py
 - Config.py file to add more prefixes (mentions, hashtags) or character_pairs (emoticons) (add to result template as well). The new parsed variable will automatically be added to database and show on GUI.
 - Add new config settings that get dynamically added to GUI and can be easily updated in logic
 
-**Unit Testing** - Run ```python test_parser.py```
+**Unit Testing**
+- Run ```python -m unittest discover -s tests```
 
- ### Future Features:
- - Update GUI design and visuals
- - Prompt user before clearing database and reset config
+### Future Features:
+- Update GUI visuals
+- Prompt user before clearing database and reset config

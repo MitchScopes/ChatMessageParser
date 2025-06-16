@@ -124,7 +124,6 @@ class Parser:
                 cached = self.url_cache.get(word)
 
                 # Ensures LRU cache order by adding word to cache before async execution
-                # Stores tasks in runtime cache
                 if cached is None:
                     now = int(time.time())
                     self.url_cache[word] = (None, None, now)  # Add to cache
