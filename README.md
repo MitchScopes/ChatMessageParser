@@ -36,11 +36,13 @@ python main.py
 - Interact with configurations (customizing emoticon length, title length, etc) (ability to set back to defualt settings)
 
 **Mode Selection:**
-- *Safe Scan* - Ignores edge cases checks for only clearly valid tokens
 - *Full Sweep* - Attempts to extract all possible patterns within message  
-Example:  
-Safe Scan: (happy)(happy)  -> emoticons = 0, words = 1  
-Full Sweep: (happy)(happy)  -> emoticons = happy, happy  
+- *Safe Scan* - Ignores edge cases checks for only clearly valid tokens  
+>Examples:  
+Full Sweep: (happy)(happy) -> emoticons = happy, happy  
+Safe Scan: (happy)(happy) -> words = 1  
+Full Sweep: @user_1,hi -> mentions = 1, words = 1  
+Safe Scan: @user_1,hi -> words = 1  
 
 **Adding New Features:**
 - Config.py file to add more prefixes (mentions, hashtags) or character_pairs (emoticons) (add to result template as well). The new parsed variable will automatically be added to database and show on GUI.

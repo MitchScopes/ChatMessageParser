@@ -102,21 +102,21 @@ class InputFrame(tk.Frame):
         self.input_label.grid(row=0, column=0, sticky="w", pady=(0, 2))
 
         # Mode selection and radio buttons
-        self.selected_option = tk.StringVar(value="Safe_Scan")
-
-        self.mode_safe_scan = tk.Radiobutton(
-            self, text="Safe Scan Mode",
-            variable=self.selected_option,
-            value="Safe_Scan"
-        )
-        self.mode_safe_scan.grid(row=0, column=1, sticky="nsew")
+        self.selected_option = tk.StringVar(value="Full_Sweep")
 
         self.mode_full_sweep = tk.Radiobutton(
             self, text="Full Sweep Mode",
             variable=self.selected_option,
             value="Full_Sweep"
         )
-        self.mode_full_sweep.grid(row=0, column=2, sticky="nsew")
+        self.mode_full_sweep.grid(row=0, column=1, sticky="nsew")
+
+        self.mode_safe_scan = tk.Radiobutton(
+            self, text="Safe Scan Mode",
+            variable=self.selected_option,
+            value="Safe_Scan"
+        )
+        self.mode_safe_scan.grid(row=0, column=2, sticky="nsew")
 
         # Message box
         self.text_input = ScrolledText(

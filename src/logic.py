@@ -118,10 +118,10 @@ class Parser:
 
         tasks = []
 
-        if mode == "Safe_Scan":
-            words = message.split()
-        else:
+        if mode == "Full_Sweep":
             words = self.token_pattern.findall(message)
+        else:
+            words = message.split()
 
         for word in words:
             word = word.rstrip('.,!?;:')
