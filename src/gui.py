@@ -256,7 +256,7 @@ class MainArea(tk.Frame):
         now = datetime.now()
         formatted_date_time = now.strftime("%I:%M:%S %p")
 
-        self.text_output.insert(tk.END, f" Message - {formatted_date_time}  \n {"━"*20} \n {message} \n\n JSON Output: \n")
+        self.text_output.insert(tk.END, f" Message - {formatted_date_time}  \n {'━'*20} \n {message} \n\n JSON Output: \n")
         self.text_output.insert(tk.END, result)
         self.text_output.insert(tk.END, "\n\n")
         self.text_output.see(tk.END)
