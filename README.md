@@ -3,7 +3,7 @@
 A chat message parser that analyzes text messages and extracts structured information.  
 
 ### ▶️ How to Run  
-1. Install Python 3.7+
+1. Install Python 3.10+
 2. Open command prompt and run the following:  
 ```
 cd/  
